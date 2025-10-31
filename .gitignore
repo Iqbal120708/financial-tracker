@@ -1,0 +1,24 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+env/
+venv/
+.venv/
+
+# Django files
+db.sqlite3
+*.log
+media/
+staticfiles/
+
+# Environment file
+.env
+
+# Termux temporary or system files
+*.swp
+*.swo
+.cache/
+
+test_email.py
