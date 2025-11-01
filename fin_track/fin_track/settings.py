@@ -145,6 +145,9 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
 CELERY_BROKER_URL = "redis://localhost:6379/0"
 CELERY_RESULT_BACKEND = "redis://localhost:6379/1"
 
+CELERY_TASK_ALWAYS_EAGER = False
+CELERY_TASK_EAGER_PROPAGATES = False
+
 from datetime import timedelta
 CELERY_BEAT_SCHEDULE = {
     "run_check_and_process_file_task": {
@@ -157,5 +160,6 @@ CELERY_BEAT_SCHEDULE = {
     # },
 }
 # CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
-# CELERY_TASK_ALWAYS_EAGER = True
-# CELERY_TASK_EAGER_PROPAGATES = True
+
+SENDER_EMAIL = "iqbalcding@gmail.com"
+TARGETS_EMAIL = ["iqballabqi127@gmail.com"]
