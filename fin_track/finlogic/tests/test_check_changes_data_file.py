@@ -41,6 +41,9 @@ def generate_fake_hash(mock_sha256):
 @patch("finlogic.file_processors.hashlib.sha256")
 class TestCheckChangesDataFile(TestCase):
     def test_new_file(self, mock_sha256, mock_logger):
+        """
+        test ketika melakukan check perubahan data tapi file nya baru
+        """
         generate_fake_hash(mock_sha256)
     
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -63,6 +66,9 @@ class TestCheckChangesDataFile(TestCase):
                 mock_logger.info.assert_any_call("Menghentikan pengecekan karena file baru")
 
     def test_old_file_with_hash_data_not_changes(self, mock_sha256, mock_logger):
+        """
+        test ketika melakukan check perubahan data, file sama tapi data tidak ada perubahan dengan pengecekan data file sebelumnya 
+        """
         generate_fake_hash(mock_sha256)
         with tempfile.TemporaryDirectory() as tmpdir:
             fake_path, dummy_file = generate_dummy_file(tmpdir)
@@ -92,6 +98,10 @@ class TestCheckChangesDataFile(TestCase):
                 mock_logger.info.assert_any_call("Hash data lama sama dengan hash data baru. Data file tidak berubah")
 
     def test_old_file_with_hash_data_changes(self, mock_sha256, mock_logger):
+        """
+        test ketika melakuksn check perubahn data, file sama dan data nya berubah dengan pengecekan data file sebelumnya
+        """
+        
         generate_fake_hash(mock_sha256)
         with tempfile.TemporaryDirectory() as tmpdir:
             fake_path, dummy_file = generate_dummy_file(tmpdir)

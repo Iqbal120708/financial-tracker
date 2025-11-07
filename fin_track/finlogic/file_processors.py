@@ -31,6 +31,7 @@ class ProcessFile:
         
         logger.info("Memulai pengecekan data di file")
         
+        # membuat hash data file
         hasher = hashlib.sha256()
         with self.file["file"].open("rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):
@@ -43,6 +44,7 @@ class ProcessFile:
             logger.info("Menghentikan pengecekan karena file baru")
             return False
         
+        # ambil data di db untuk membandingkan hashing sekarang dengan yang lama
         try:
             self.last_file = FileIntegrity.objects.get(
                 filename=self.file["file_name"]
