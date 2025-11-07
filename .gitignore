@@ -22,3 +22,5 @@ staticfiles/
 .cache/
 
 test_email.py
+credentials/
+logs/

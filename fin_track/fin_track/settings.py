@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from celery.schedules import crontab
 from dotenv import load_dotenv
+from .jsonlog import JSONFormatter
 
 load_dotenv()
 
@@ -46,7 +47,7 @@ INSTALLED_APPS = [
     "accounts",
     "core",
     "finlogic",
-    #"django_celery_beat",
+    # "django_celery_beat",
 ]
 
 MIDDLEWARE = [
@@ -139,7 +140,7 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
-#DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # Celery
 CELERY_BROKER_URL = "redis://localhost:6379/0"
@@ -149,6 +150,7 @@ CELERY_TASK_ALWAYS_EAGER = False
 CELERY_TASK_EAGER_PROPAGATES = False
 
 from datetime import timedelta
+
 CELERY_BEAT_SCHEDULE = {
     "run_check_and_process_file_task": {
         "task": "finlogic.tasks.check_and_process_file_task",
@@ -163,3 +165,47 @@ CELERY_BEAT_SCHEDULE = {
 
 SENDER_EMAIL = "iqbalcding@gmail.com"
 TARGETS_EMAIL = ["iqballabqi127@gmail.com"]
+
+ID_FILE_GOOGLE_SHEETS = os.environ.get("ID_FILE_GOOGLE_SHEETS")
+PATH_CREDENTIALS = os.environ.get("PATH_CREDENTIALS")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {
+            "format": "{name} - {levelname} - {message}",
+            "style": "{",
+        },
+        "json": {
+            "()": JSONFormatter,
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "simple"},
+        "file_debug": {
+            "level": "DEBUG",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(BASE_DIR.parent, "logs", "debug.log"),
+            "formatter": "json",
+            "maxBytes": 1024 * 5,
+            "backupCount": 3,
+        },
+        "file_error": {
+            "level": "ERROR",
+            "class": "logging.handlers.RotatingFileHandler",
+            "formatter": "json",
+            "filename": os.path.join(BASE_DIR.parent, "logs", "error.log"),
+            "maxBytes": 1024 * 5,
+            "backupCount": 3,
+        },
+    },
+    "loggers": {
+        "fintrack": {
+            "handlers": ["file_debug", "file_error"],
+            "level": "DEBUG",
+            "propagate": True,
+        }
+    },
+}
