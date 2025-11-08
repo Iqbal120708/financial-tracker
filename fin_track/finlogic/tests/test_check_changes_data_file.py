@@ -1,6 +1,6 @@
 from django.test import TestCase, override_settings
 from finlogic.models import FileIntegrity
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from pathlib import Path
 import tempfile
 from django.core import mail
@@ -8,26 +8,8 @@ from django.utils.timezone import now
 from freezegun import freeze_time
 import csv
 from finlogic.file_processors import ProcessFile
-import hashlib
-
-
-def generate_dummy_file(tmpdir):
-    fake_path = Path(tmpdir)
-    dummy_file = fake_path / "data_1.csv"
-
-    with dummy_file.open("w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["date", "category", "subcategory", "price"])
-        writer.writerow(["2025-10-23", "Makanan & Minuman", "Cemilan", 5000])
-        writer.writerow(["2025-10-23", "Transportasi", "Tiket Umum", 10000])
-
-    assert dummy_file.exists()
-    return fake_path, dummy_file
-
-def generate_fake_hash(mock_sha256):
-    mock_hash = MagicMock()
-    mock_hash.hexdigest.return_value = "fakehash123"
-    mock_sha256.return_value = mock_hash
+#import hashlib
+from finlogic.tests.helper_test import generate_dummy_file, generate_fake_hash
     
 # Create your tests here.
 @override_settings(
@@ -59,7 +41,7 @@ class TestCheckChangesDataFile(TestCase):
                 is_changes = obj.check_changes_data_file()
 
                 # False karena file baru
-                self.assertFalse(is_changes)
+                self.assertTrue(is_changes)
                 
                 mock_logger.info.assert_any_call("Memulai pengecekan data di file")
                 mock_logger.debug.assert_any_call(f"Hash file berhasil dibuat: fakehash123")
@@ -96,6 +78,14 @@ class TestCheckChangesDataFile(TestCase):
                 mock_logger.info.assert_any_call("Memulai pengecekan data di file")
                 mock_logger.debug.assert_any_call(f"Hash file berhasil dibuat: fakehash123")
                 mock_logger.info.assert_any_call("Hash data lama sama dengan hash data baru. Data file tidak berubah")
+                
+                self.assertEqual(len(mail.outbox), 1)
+                
+                email = mail.outbox[0]
+                
+                self.assertEqual(email.subject, "Data File Tidak Berubah")
+                self.assertEqual(email.from_email, "system@example.com")
+                self.assertEqual(email.to, ["target@example.com"])
 
     def test_old_file_with_hash_data_changes(self, mock_sha256, mock_logger):
         """

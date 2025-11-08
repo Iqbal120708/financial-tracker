@@ -17,17 +17,36 @@ logger = logging.getLogger("fintrack")
 class ProcessFile:
     def __init__(self, file):
         self.scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-        self.creds = Credentials.from_service_account_file(
-            settings.PATH_CREDENTIALS, scopes=self.scopes
-        )
-        self.gc = gspread.authorize(self.creds)
-        self.sh = self.gc.open_by_key(settings.ID_FILE_GOOGLE_SHEETS)
+        
+        try:
+            self.creds = Credentials.from_service_account_file(
+                settings.PATH_CREDENTIALS, scopes=self.scopes
+            )
+        except FileNotFoundError:
+            logger.error(f"File credentials tidak ditemukan di path: {settings.PATH_CREDENTIALS}")
+            raise
+        except Exception as e:
+            logger.error(f"Kredensial tidak valid: {e}")
+            raise
+        
+        try:
+            self.gc = gspread.authorize(self.creds)
+        except Exception as e:
+            logger.error(f"Gagal menghubungkan ke Google Sheets API: {e}")
+            raise
+            
+        try:
+            self.sh = self.gc.open_by_key(settings.ID_FILE_GOOGLE_SHEETS)
+        except (gspread.exceptions.SpreadsheetNotFound) as e:
+            logger.error(f"Tidak dapat menemukan spreadsheet dengan ID: {settings.ID_FILE_GOOGLE_SHEETS}")
+            raise
+        
         self.file = file
         self.path_dummy_data = Path("/data/data/com.termux/files/home/dummy-data")
 
     def check_changes_data_file(self):
         # cek apakah file lama ada perubahan data
-        # nama file ada di model dan data berubah = True
+        # data berubah = True
         
         logger.info("Memulai pengecekan data di file")
         
@@ -42,7 +61,7 @@ class ProcessFile:
         
         if self.file["is_new_file"]:
             logger.info("Menghentikan pengecekan karena file baru")
-            return False
+            return True
         
         # ambil data di db untuk membandingkan hashing sekarang dengan yang lama
         try:
@@ -67,22 +86,33 @@ class ProcessFile:
         logger.info("Data file berubah")
         return True
 
-    def get_file(self):
+    def group_file_data(self):
         with self.file["file"].open("r", encoding="utf-8") as f:
+            logger.info("Melakukan pengambilan dan pengelompokkan data file")
+            
             reader = csv.DictReader(f)
+            # buat variabel untuk tempat hasil grouping data
             self.grouped_data_category = {}
             self.grouped_monthly_data = {}
-            for row in reader:
-                row["date"] = datetime.strptime(row["date"], "%Y-%m-%d").date()
-
+            
+            for i, row in enumerate(reader):
+                # mengecek baris data jika ada field yang kosonk maka data akan diskip dan ke baris selanjutnya
+                missing_fields = [key for key, value in row.items() if not value]
+                if missing_fields:
+                    logger.warning(
+                        f"Baris {i + 1}: Data kosong pada field {', '.join(missing_fields)} di file {self.file['file_name']}"
+                    )
+                    continue
+                
                 # tambah key baru
-                row["month"] = row["date"].strftime("%Y-%m")
-
-                month = row["month"]
-                category = row["category"]
-                price = int(row["price"])
-                date = row["date"]
-
+                # "2025-11-08" => "2025-11"
+                row["month"] = "-".join(row["date"].split("-")[:2])
+                
+                date = row.get("date")
+                category = row.get("category")
+                price = int(row.get("price"))
+                month = row.get("month")
+                
                 self.grouped_data_category.setdefault(month, {}).setdefault(
                     category, []
                 ).append(price)
@@ -90,6 +120,9 @@ class ProcessFile:
                 self.grouped_monthly_data.setdefault(month, {}).setdefault(
                     date, []
                 ).append(price)
+                
+            logger.info(f"Pengelompokan data dari file {self.file['file_name']} telah selesai diproses")
+            return self.grouped_data_category, self.grouped_monthly_data
 
     def get_worksheet(self, name):
         worksheet = self.sh.worksheet(name)
