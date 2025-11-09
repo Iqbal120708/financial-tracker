@@ -12,5 +12,5 @@ class JSONFormatter(logging.Formatter):
             "func": record.funcName,
             "event": record.msg,
         }
-        
+
         return json.dumps(log_record)

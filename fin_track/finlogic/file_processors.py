@@ -12,44 +12,49 @@ import logging
 
 logger = logging.getLogger("fintrack")
 
+
 # lakukan test
 # tambab logging
 class ProcessFile:
     def __init__(self, file):
         self.scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-        
+
         try:
             self.creds = Credentials.from_service_account_file(
                 settings.PATH_CREDENTIALS, scopes=self.scopes
             )
         except FileNotFoundError:
-            logger.error(f"File credentials tidak ditemukan di path: {settings.PATH_CREDENTIALS}")
+            logger.error(
+                f"File credentials tidak ditemukan di path: {settings.PATH_CREDENTIALS}"
+            )
             raise
         except Exception as e:
-            logger.error(f"Kredensial tidak valid: {e}")
+            logger.exception(f"Kredensial tidak valid: {e}")
             raise
-        
+
         try:
             self.gc = gspread.authorize(self.creds)
         except Exception as e:
-            logger.error(f"Gagal menghubungkan ke Google Sheets API: {e}")
+            logger.exception(f"Gagal menghubungkan ke Google Sheets API: {e}")
             raise
-            
+
         try:
             self.sh = self.gc.open_by_key(settings.ID_FILE_GOOGLE_SHEETS)
-        except (gspread.exceptions.SpreadsheetNotFound) as e:
-            logger.error(f"Tidak dapat menemukan spreadsheet dengan ID: {settings.ID_FILE_GOOGLE_SHEETS}")
+        except gspread.exceptions.SpreadsheetNotFound as e:
+            logger.error(
+                f"Tidak dapat menemukan spreadsheet dengan ID: {settings.ID_FILE_GOOGLE_SHEETS}"
+            )
             raise
-        
+
         self.file = file
-        self.path_dummy_data = Path("/data/data/com.termux/files/home/dummy-data")
+        self.path_data = Path("/data/data/com.termux/files/home/dummy-data")
 
     def check_changes_data_file(self):
         # cek apakah file lama ada perubahan data
         # data berubah = True
-        
+
         logger.info("Memulai pengecekan data di file")
-        
+
         # membuat hash data file
         hasher = hashlib.sha256()
         with self.file["file"].open("rb") as f:
@@ -58,43 +63,45 @@ class ProcessFile:
 
         self.file_hash = hasher.hexdigest()
         logger.debug(f"Hash file berhasil dibuat: {self.file_hash}")
-        
+
         if self.file["is_new_file"]:
             logger.info("Menghentikan pengecekan karena file baru")
             return True
-        
+
         # ambil data di db untuk membandingkan hashing sekarang dengan yang lama
         try:
-            self.last_file = FileIntegrity.objects.get(
-                filename=self.file["file_name"]
-            )
+            self.last_file = FileIntegrity.objects.get(filename=self.file["file_name"])
         except FileIntegrity.DoesNotExist as e:
-            logger.error(f"File dengan nama {self.file["file_name"]} tidak ditemukan di database")
-            raise 
+            logger.error(
+                f"File dengan nama {self.file["file_name"]} tidak ditemukan di database"
+            )
+            raise
 
         if self.file_hash == self.last_file.hash_data:
-            logger.info("Hash data lama sama dengan hash data baru. Data file tidak berubah")
+            logger.info(
+                "Hash data lama sama dengan hash data baru. Data file tidak berubah"
+            )
             message = (
                 f"Sistem tidak mendeteksi perubahan pada file {self.file['file_name']} di lokasi berikut:\n"
-                f"{self.path_dummy_data}\n\n"
+                f"{self.path_data}\n\n"
                 f"Silakan tambah atau buat perubahan pada data file jika di perlukan.\n\n"
                 f"Sistem Monitoring File"
             )
             send_mail_task.delay("Data File Tidak Berubah", message)
             return False
-        
+
         logger.info("Data file berubah")
         return True
 
     def group_file_data(self):
         with self.file["file"].open("r", encoding="utf-8") as f:
             logger.info("Melakukan pengambilan dan pengelompokkan data file")
-            
+
             reader = csv.DictReader(f)
             # buat variabel untuk tempat hasil grouping data
             self.grouped_data_category = {}
             self.grouped_monthly_data = {}
-            
+
             for i, row in enumerate(reader):
                 # mengecek baris data jika ada field yang kosonk maka data akan diskip dan ke baris selanjutnya
                 missing_fields = [key for key, value in row.items() if not value]
@@ -103,16 +110,16 @@ class ProcessFile:
                         f"Baris {i + 1}: Data kosong pada field {', '.join(missing_fields)} di file {self.file['file_name']}"
                     )
                     continue
-                
+
                 # tambah key baru
                 # "2025-11-08" => "2025-11"
                 row["month"] = "-".join(row["date"].split("-")[:2])
-                
+
                 date = row.get("date")
                 category = row.get("category")
                 price = int(row.get("price"))
                 month = row.get("month")
-                
+
                 self.grouped_data_category.setdefault(month, {}).setdefault(
                     category, []
                 ).append(price)
@@ -120,43 +127,77 @@ class ProcessFile:
                 self.grouped_monthly_data.setdefault(month, {}).setdefault(
                     date, []
                 ).append(price)
-                
-            logger.info(f"Pengelompokan data dari file {self.file['file_name']} telah selesai diproses")
+
+            logger.info(
+                f"Pengelompokan data dari file {self.file['file_name']} telah selesai diproses"
+            )
             return self.grouped_data_category, self.grouped_monthly_data
 
     def get_worksheet(self, name):
-        worksheet = self.sh.worksheet(name)
-        values = worksheet.get_all_values()
-        data_rows = values[1:]
-        lookup = {}
-        return worksheet, data_rows, lookup
+        try:
+            worksheet = self.sh.worksheet(name)
+            values = worksheet.get_all_values()
+            data_rows = values[1:] if len(values) > 1 else []
+            lookup = {}
+            return worksheet, data_rows, lookup
+        except gspread.exceptions.WorksheetNotFound:
+            logger.error(f"Worksheet '{name}' tidak ditemukan.")
+            raise
+        except Exception as e:
+            logger.exception(f"Gagal mengambil worksheet: {e}")
+            raise
 
     def change_sheets(self, worksheet, rows_for_update, rows_for_append):
-        if rows_for_update:
-            worksheet.batch_update(rows_for_update)
-        if rows_for_append:
-            worksheet.append_rows(rows_for_append)
+        try:
+            if rows_for_update:
+                worksheet.batch_update(rows_for_update)
+                logger.info("Data bagian yang di update berhail di upload")
+            if rows_for_append:
+                worksheet.append_rows(rows_for_append)
+                logger.info("Data bagian yang di add berhail di upload")
+        except gspread.exceptions.APIError as e:
+            logger.exception(f"API error saat mengubah sheet: {e}")
+            raise
+        except Exception as e:
+            logger.exception(f"Gagal memperbarui sheet: {e}")
+            raise
 
     def process_file_category_expense(self):
+        logger.info("Memulai pemrosesan file sheets bagian Pengeluaran Category")
+
         worksheet, data_rows, lookup = self.get_worksheet("Pengeluaran Category")
+
+        # mengisi data lookup
+        # lookup untuk dapat nyimpan lokasi baris data dan key-nya dibuat agar mudah di ambil pas lagi looping data group
         for i, row in enumerate(data_rows, start=2):  # mulai dari baris ke-2
             month, category = row[0], row[1]
             total_expense = int(row[2])
             lookup[(month, category)] = [i, total_expense]
 
+        # variabel untuk kirim data sesuai format worksheet
         rows_for_update, rows_for_append = [], []
+
+        # mengkelola data hasil grouping agar sesuai format worksheet untuk di upload
         for month, categories_in_month in self.grouped_data_category.items():
             for category, prices in categories_in_month.items():
                 key = (month, category)
                 total_new = sum(prices)
 
+                # ambil data lookup sesuai key (month, category)
                 if key in lookup:
+                    # ambil baris dan total yang ada di worksheet
                     row_index, total_old = lookup[key]
+
+                    # buat total baru
+                    # total_old = total yang ada di get_worksheet
+                    # total_new = total dari process file csv
                     new_total = total_old + total_new
+
+                    # simpan lokasi baris yang akan di update dengan data baru
                     rows_for_update.append(
                         {"range": f"C{row_index}", "values": [[new_total]]}
                     )
-                else:
+                else:  # kalo key tak ditemukan berarti data baru
                     rows_for_append.append([month, category, total_new])
 
         self.change_sheets(worksheet, rows_for_update, rows_for_append)
@@ -216,7 +257,7 @@ class ProcessFile:
     def send_email_success(self):
         message = (
             f"Sistem berhasil melakukan pemrosesan pada file {self.file['file_name']} di lokasi berikut:\n"
-            f"{self.path_dummy_data}\n\n"
+            f"{self.path_data}\n\n"
             f"Sistem Monitoring File"
         )
         send_mail_task.delay("Data File Berhasil di Proses", message)

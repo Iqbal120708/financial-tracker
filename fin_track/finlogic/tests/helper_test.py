@@ -2,6 +2,7 @@ import csv
 from unittest.mock import MagicMock
 from pathlib import Path
 
+
 def generate_dummy_file(tmpdir):
     fake_path = Path(tmpdir)
     dummy_file = fake_path / "data_1.csv"
@@ -14,6 +15,7 @@ def generate_dummy_file(tmpdir):
 
     assert dummy_file.exists()
     return fake_path, dummy_file
+
 
 def generate_fake_hash(mock_sha256):
     mock_hash = MagicMock()

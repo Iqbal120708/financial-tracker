@@ -8,9 +8,11 @@ from django.utils.timezone import now
 from freezegun import freeze_time
 import csv
 from finlogic.file_processors import ProcessFile
-#import hashlib
+
+# import hashlib
 from finlogic.tests.helper_test import generate_dummy_file, generate_fake_hash
-    
+
+
 # Create your tests here.
 @override_settings(
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
@@ -27,7 +29,7 @@ class TestCheckChangesDataFile(TestCase):
         test ketika melakukan check perubahan data tapi file nya baru
         """
         generate_fake_hash(mock_sha256)
-    
+
         with tempfile.TemporaryDirectory() as tmpdir:
             fake_path, dummy_file = generate_dummy_file(tmpdir)
 
@@ -42,14 +44,18 @@ class TestCheckChangesDataFile(TestCase):
 
                 # False karena file baru
                 self.assertTrue(is_changes)
-                
+
                 mock_logger.info.assert_any_call("Memulai pengecekan data di file")
-                mock_logger.debug.assert_any_call(f"Hash file berhasil dibuat: fakehash123")
-                mock_logger.info.assert_any_call("Menghentikan pengecekan karena file baru")
+                mock_logger.debug.assert_any_call(
+                    f"Hash file berhasil dibuat: fakehash123"
+                )
+                mock_logger.info.assert_any_call(
+                    "Menghentikan pengecekan karena file baru"
+                )
 
     def test_old_file_with_hash_data_not_changes(self, mock_sha256, mock_logger):
         """
-        test ketika melakukan check perubahan data, file sama tapi data tidak ada perubahan dengan pengecekan data file sebelumnya 
+        test ketika melakukan check perubahan data, file sama tapi data tidak ada perubahan dengan pengecekan data file sebelumnya
         """
         generate_fake_hash(mock_sha256)
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -74,15 +80,19 @@ class TestCheckChangesDataFile(TestCase):
 
                 # False karena file datanya tak berubah atau file_hash nya sama dengan hash_data model
                 self.assertFalse(is_changes)
-                
+
                 mock_logger.info.assert_any_call("Memulai pengecekan data di file")
-                mock_logger.debug.assert_any_call(f"Hash file berhasil dibuat: fakehash123")
-                mock_logger.info.assert_any_call("Hash data lama sama dengan hash data baru. Data file tidak berubah")
-                
+                mock_logger.debug.assert_any_call(
+                    f"Hash file berhasil dibuat: fakehash123"
+                )
+                mock_logger.info.assert_any_call(
+                    "Hash data lama sama dengan hash data baru. Data file tidak berubah"
+                )
+
                 self.assertEqual(len(mail.outbox), 1)
-                
+
                 email = mail.outbox[0]
-                
+
                 self.assertEqual(email.subject, "Data File Tidak Berubah")
                 self.assertEqual(email.from_email, "system@example.com")
                 self.assertEqual(email.to, ["target@example.com"])
@@ -91,7 +101,7 @@ class TestCheckChangesDataFile(TestCase):
         """
         test ketika melakuksn check perubahn data, file sama dan data nya berubah dengan pengecekan data file sebelumnya
         """
-        
+
         generate_fake_hash(mock_sha256)
         with tempfile.TemporaryDirectory() as tmpdir:
             fake_path, dummy_file = generate_dummy_file(tmpdir)
@@ -120,7 +130,9 @@ class TestCheckChangesDataFile(TestCase):
 
                 # True karena data file berubah
                 self.assertTrue(is_changes)
-                
+
                 mock_logger.info.assert_any_call("Memulai pengecekan data di file")
-                mock_logger.debug.assert_any_call(f"Hash file berhasil dibuat: fakehash123")
+                mock_logger.debug.assert_any_call(
+                    f"Hash file berhasil dibuat: fakehash123"
+                )
                 mock_logger.info.assert_any_call("Data file berubah")
