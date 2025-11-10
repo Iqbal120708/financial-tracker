@@ -137,12 +137,22 @@ class ProcessFile:
         try:
             worksheet = self.sh.worksheet(name)
             values = worksheet.get_all_values()
+            header = values[0]
+        
+            if header != ["month", "category", "total_expense"] and name == "Pengeluaran Category":
+                raise Exception("Header tidak sesuai untuk worksheet 'Pengeluaran Category'")
+        
+            elif header != ["month", "total_expense", "avg_per_day", "days_count"] and name == "Pengeluaran Bulanan":
+                raise Exception("Header tidak sesuai untuk worksheet 'Pengeluaran Bulanan'")
+        
             data_rows = values[1:] if len(values) > 1 else []
             lookup = {}
             return worksheet, data_rows, lookup
+        
         except gspread.exceptions.WorksheetNotFound:
             logger.error(f"Worksheet '{name}' tidak ditemukan.")
             raise
+        
         except Exception as e:
             logger.exception(f"Gagal mengambil worksheet: {e}")
             raise
@@ -201,7 +211,7 @@ class ProcessFile:
                     rows_for_append.append([month, category, total_new])
 
         self.change_sheets(worksheet, rows_for_update, rows_for_append)
-
+        
         return rows_for_update, rows_for_append
 
     def process_file_monthly_expense(self):
