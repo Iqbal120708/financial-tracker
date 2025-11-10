@@ -202,6 +202,8 @@ class ProcessFile:
 
         self.change_sheets(worksheet, rows_for_update, rows_for_append)
 
+        return rows_for_update, rows_for_append
+
     def process_file_monthly_expense(self):
         worksheet, data_rows, lookup = self.get_worksheet("Pengeluaran Bulanan")
         for i, row in enumerate(data_rows, start=2):  # mulai dari baris ke-2
