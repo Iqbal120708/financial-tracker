@@ -136,23 +136,33 @@ class ProcessFile:
     def get_worksheet(self, name):
         try:
             worksheet = self.sh.worksheet(name)
-            values = worksheet.get_all_values()
-            header = values[0]
-        
-            if header != ["month", "category", "total_expense"] and name == "Pengeluaran Category":
-                raise Exception("Header tidak sesuai untuk worksheet 'Pengeluaran Category'")
-        
-            elif header != ["month", "total_expense", "avg_per_day", "days_count"] and name == "Pengeluaran Bulanan":
-                raise Exception("Header tidak sesuai untuk worksheet 'Pengeluaran Bulanan'")
-        
-            data_rows = values[1:] if len(values) > 1 else []
+            self.values = worksheet.get_all_values()
+            header = self.values[0]
+
+            if (
+                header != ["month", "category", "total_expense"]
+                and name == "Pengeluaran Category"
+            ):
+                raise Exception(
+                    "Header tidak sesuai untuk worksheet 'Pengeluaran Category'"
+                )
+
+            elif (
+                header != ["month", "total_expense", "avg_per_day", "days_count"]
+                and name == "Pengeluaran Bulanan"
+            ):
+                raise Exception(
+                    "Header tidak sesuai untuk worksheet 'Pengeluaran Bulanan'"
+                )
+
+            data_rows = self.values[1:] if len(self.values) > 1 else []
             lookup = {}
             return worksheet, data_rows, lookup
-        
+
         except gspread.exceptions.WorksheetNotFound:
             logger.error(f"Worksheet '{name}' tidak ditemukan.")
             raise
-        
+
         except Exception as e:
             logger.exception(f"Gagal mengambil worksheet: {e}")
             raise
@@ -186,12 +196,15 @@ class ProcessFile:
 
         # variabel untuk kirim data sesuai format worksheet
         rows_for_update, rows_for_append = [], []
+        self.latest_category_expense_data = {}  # untuk nyimpan di db
 
         # mengkelola data hasil grouping agar sesuai format worksheet untuk di upload
         for month, categories_in_month in self.grouped_data_category.items():
             for category, prices in categories_in_month.items():
                 key = (month, category)
                 total_new = sum(prices)
+
+                self.latest_category_expense_data[f"{month}|{category}"] = total_new
 
                 # ambil data lookup sesuai key (month, category)
                 if key in lookup:
@@ -210,8 +223,37 @@ class ProcessFile:
                 else:  # kalo key tak ditemukan berarti data baru
                     rows_for_append.append([month, category, total_new])
 
+        # mengurangi total yang ada di lookup (google sheets) dengan total total hasil dari process category expense
+        if not self.file["is_new_file"]:
+            for key, total in self.last_file.latest_category_expense_data.items():
+                # month|category > (month, category)
+                key = tuple(key.split("|"))
+                if key in lookup:
+                    row_index, total_expense = lookup[key]
+                    # ambil baris rows_for_update hasil loop.self.grouped_data_category
+                    row = next(
+                        (
+                            item
+                            for item in rows_for_update
+                            if item["range"] == f"C{row_index}"
+                        ),
+                        None,
+                    )
+                    if row: 
+                        # jika ada kurangi dengan total dari item latest_category_expense_data
+                        row["values"][0][0] -= total
+                    else:
+                        # jika tidak ada tambah le rows_for_update tapi tapi total_expense di kurangi total
+                        # total_expense > nilai dari lookup atau google sheets
+                        # total > nilai dari item latest_category_expense_data
+                        rows_for_update.append(
+                            {
+                                "range": f"C{row_index}",
+                                "values": [[total_expense - total]],
+                            }
+                        )
+
         self.change_sheets(worksheet, rows_for_update, rows_for_append)
-        
         return rows_for_update, rows_for_append
 
     def process_file_monthly_expense(self):
@@ -255,15 +297,19 @@ class ProcessFile:
         self.change_sheets(worksheet, rows_for_update, rows_for_append)
 
     def change_data_model(self):
-        if self.last_file:
+        if not self.file["is_new_file"]:
             self.last_file.hash_data = self.file_hash
             self.last_file.last_checked = now()
+            self.last_file.latest_category_expense_data = (
+                self.latest_category_expense_data
+            )
             self.last_file.save()
         else:
             FileIntegrity.objects.create(
                 filename=self.file["file_name"],
                 hash_data=self.file_hash,
                 last_checked=now(),
+                latest_category_expense_data=self.latest_category_expense_data,
             )
 
     def send_email_success(self):

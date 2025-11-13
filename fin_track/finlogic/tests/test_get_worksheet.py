@@ -142,9 +142,11 @@ class TestWorksheet(TestCase):
             with self.assertRaises(Exception):
                 obj = ProcessFile(file)
                 obj.get_worksheet("Pengeluaran Category")
-            
-            mock_logger.exception.assert_any_call("Gagal mengambil worksheet: Header tidak sesuai untuk worksheet 'Pengeluaran Category'")
-            
+
+            mock_logger.exception.assert_any_call(
+                "Gagal mengambil worksheet: Header tidak sesuai untuk worksheet 'Pengeluaran Category'"
+            )
+
     def test_header_monthly_invalid(self, mock_logger):
         with patch("finlogic.file_processors.gspread.authorize") as mock_authorize:
             fake_gc = MagicMock()
@@ -170,5 +172,7 @@ class TestWorksheet(TestCase):
             with self.assertRaises(Exception):
                 obj = ProcessFile(file)
                 obj.get_worksheet("Pengeluaran Bulanan")
-            
-            mock_logger.exception.assert_any_call("Gagal mengambil worksheet: Header tidak sesuai untuk worksheet 'Pengeluaran Bulanan'")
+
+            mock_logger.exception.assert_any_call(
+                "Gagal mengambil worksheet: Header tidak sesuai untuk worksheet 'Pengeluaran Bulanan'"
+            )
