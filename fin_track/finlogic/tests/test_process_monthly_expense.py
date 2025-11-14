@@ -122,6 +122,19 @@ class TestWorksheet(TestCase):
                     )
                     obj.change_data_model()
 
+                model = FileIntegrity.objects.first()
+                self.assertEqual(
+                    model.latest_monthly_expense_data,
+                    {
+                        "2025-09": {
+                            "total_new": 5000, "days_count_new": 1
+                        },
+                        "2025-10": {
+                            "total_new": 10000, "days_count_new": 1
+                        }
+                    }
+                )
+                
                 # ubah values berdasarkan baris agar data sheets berubah sesuai update
                 for item in rows_for_update:
                     index = int(item["range"][1]) - 1
@@ -171,6 +184,19 @@ class TestWorksheet(TestCase):
                 # yang masuk rows_for_append adalah month 2025-10
                 self.assertEqual(rows_for_append, [])
                 
+                model.refresh_from_db()
+                self.assertEqual(
+                    model.latest_monthly_expense_data,
+                    {
+                        "2025-09": {
+                            "total_new": 5000, "days_count_new": 1
+                        },
+                        "2025-10": {
+                            "total_new": 15000, "days_count_new": 2
+                        }
+                    }
+                )
+                
     def test_reprocess_file_with_price_updated(self, mock_logger):
         """
         File hasil process di-process ulang dengan update harga salah satu data
@@ -208,6 +234,20 @@ class TestWorksheet(TestCase):
                         obj.process_file_monthly_expense()
                     )
                     obj.change_data_model()
+                    
+                model = FileIntegrity.objects.first()
+                self.assertEqual(
+                    model.latest_monthly_expense_data,
+                    {
+                        "2025-09": {
+                            "total_new": 5000, "days_count_new": 1
+                        },
+                        "2025-10": {
+                            "total_new": 10000, "days_count_new": 1
+                        }
+                    }
+                )
+                
 
                 # ubah values berdasarkan baris agar data sheets berubah sesuai update
                 for item in rows_for_update:
@@ -262,6 +302,20 @@ class TestWorksheet(TestCase):
                 # yang masuk rows_for_append adalah month 2025-10
                 self.assertEqual(rows_for_append, [])
                 
+                model.refresh_from_db()
+                self.assertEqual(
+                    model.latest_monthly_expense_data,
+                    {
+                        "2025-09": {
+                            "total_new": 5000, "days_count_new": 1
+                        },
+                        "2025-10": {
+                            "total_new": 20000, "days_count_new": 1
+                        }
+                    }
+                )
+                
+                
     def test_reprocess_file_with_month_updated(self, mock_logger):
         """
         File hasil process di-process ulang dengan update month salah satu data
@@ -299,7 +353,20 @@ class TestWorksheet(TestCase):
                         obj.process_file_monthly_expense()
                     )
                     obj.change_data_model()
-
+                
+                model = FileIntegrity.objects.first()
+                self.assertEqual(
+                    model.latest_monthly_expense_data,
+                    {
+                        "2025-09": {
+                            "total_new": 5000, "days_count_new": 1
+                        },
+                        "2025-10": {
+                            "total_new": 10000, "days_count_new": 1
+                        }
+                    }
+                )
+                
                 # ubah values berdasarkan baris agar data sheets berubah sesuai update
                 for item in rows_for_update:
                     index = int(item["range"][1]) - 1
@@ -355,3 +422,14 @@ class TestWorksheet(TestCase):
 
                 # yang masuk rows_for_append adalah month 2025-10
                 self.assertEqual(rows_for_append, [])
+
+                model.refresh_from_db()
+                self.assertEqual(
+                    model.latest_monthly_expense_data,
+                    {
+                        "2025-09": {
+                            "total_new": 15000, "days_count_new": 2
+                        },
+                    }
+                )
+                
