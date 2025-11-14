@@ -8,7 +8,10 @@ class FileIntegrity(BaseModel):
     filename = models.CharField(max_length=13, unique=True)  # max file: data_9999.csv
     hash_data = models.CharField(max_length=64)
     last_checked = models.DateTimeField()
+    # menyimpan nilai terakhir hasil pemrosesan file bagian category expense
     latest_category_expense_data = models.JSONField(default=dict)
+    # menyimpan nilai terakhir hasil pemrosesan file bagian monthly expense
+    latest_monthly_expense_data = models.JSONField(default=dict)
 
     def clean(self):
         file = self.filename

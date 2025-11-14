@@ -11,6 +11,7 @@ import gspread
 import csv
 from finlogic.models import FileIntegrity
 
+
 @override_settings(
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
     SENDER_EMAIL="system@example.com",
@@ -22,9 +23,6 @@ from finlogic.models import FileIntegrity
 class TestWorksheet(TestCase):
     @patch("finlogic.file_processors.hashlib.sha256")
     def test_success(self, mock_sha256, mock_logger):
-        """
-        File hasil process di-process ulang dengan nambah data baru
-        """
         generate_fake_hash(mock_sha256)
         with tempfile.TemporaryDirectory() as tmpdir:
             fake_path, dummy_file = generate_dummy_file(tmpdir)
@@ -53,7 +51,9 @@ class TestWorksheet(TestCase):
                 obj = ProcessFile(file)
                 if obj.check_changes_data_file():
                     obj.group_file_data()
-                    rows_for_update, rows_for_append = obj.process_file_category_expense()
+                    rows_for_update, rows_for_append = (
+                        obj.process_file_category_expense()
+                    )
 
                 # 15000 dari value fake_ws
                 # 5000 dari generate_dummy_file
@@ -63,17 +63,15 @@ class TestWorksheet(TestCase):
                 )
 
                 self.assertEqual(rows_for_append, [["2025-10", "Transportasi", 10000]])
-                
-                self.assertEqual(rows_for_append, [["2025-10", "Transportasi", 10000]])
 
                 mock_logger.info.assert_any_call(
                     "Memulai pemrosesan file sheets bagian Pengeluaran Category"
                 )
                 mock_logger.info.assert_any_call(
-                    "Data bagian yang di update berhail di upload"
+                    "Data bagian yang di update berhasil di upload"
                 )
                 mock_logger.info.assert_any_call(
-                    "Data bagian yang di add berhail di upload"
+                    "Data bagian yang di add berhasil di upload"
                 )
 
     def test_reprocess_file_with_new_data_added(self, mock_logger):
@@ -114,9 +112,12 @@ class TestWorksheet(TestCase):
                         obj.process_file_category_expense()
                     )
                     obj.change_data_model()
-                    
+
                 model = FileIntegrity.objects.first()
-                self.assertEqual(model.latest_category_expense_data, {'2025-10|Makanan & Minuman': 5000, '2025-10|Transportasi': 10000})
+                self.assertEqual(
+                    model.latest_category_expense_data,
+                    {"2025-10|Makanan & Minuman": 5000, "2025-10|Transportasi": 10000},
+                )
 
                 # 15000 dari value fake_ws
                 # 5000 dari generate_dummy_file
@@ -176,9 +177,16 @@ class TestWorksheet(TestCase):
                 self.assertEqual(
                     rows_for_append, [["2025-10", "Hiburan & Gaya Hidup", 75000]]
                 )
-                
+
                 model.refresh_from_db()
-                self.assertEqual(model.latest_category_expense_data, {'2025-10|Makanan & Minuman': 5000, '2025-10|Transportasi': 10000, '2025-10|Hiburan & Gaya Hidup': 75000})
+                self.assertEqual(
+                    model.latest_category_expense_data,
+                    {
+                        "2025-10|Makanan & Minuman": 5000,
+                        "2025-10|Transportasi": 10000,
+                        "2025-10|Hiburan & Gaya Hidup": 75000,
+                    },
+                )
 
     def test_reprocess_file_with_price_updated(self, mock_logger):
         """
@@ -189,7 +197,7 @@ class TestWorksheet(TestCase):
             fake_path, dummy_file = generate_dummy_file(tmpdir)
 
             with patch("finlogic.file_processors.gspread.authorize") as mock_authorize:
-                
+
                 fake_gc = MagicMock()
                 fake_sh = MagicMock()
                 fake_ws = MagicMock()
@@ -221,8 +229,10 @@ class TestWorksheet(TestCase):
                     obj.change_data_model()
 
                 model = FileIntegrity.objects.first()
-                self.assertEqual(model.latest_category_expense_data, {'2025-10|Makanan & Minuman': 5000, '2025-10|Transportasi': 10000})
-
+                self.assertEqual(
+                    model.latest_category_expense_data,
+                    {"2025-10|Makanan & Minuman": 5000, "2025-10|Transportasi": 10000},
+                )
 
                 # 15000 dari value fake_ws
                 # 5000 dari generate_dummy_file
@@ -282,10 +292,12 @@ class TestWorksheet(TestCase):
                 )
 
                 self.assertEqual(rows_for_append, [])
-                
-                model.refresh_from_db()
-                self.assertEqual(model.latest_category_expense_data, {'2025-10|Makanan & Minuman': 10000, '2025-10|Transportasi': 10000})
 
+                model.refresh_from_db()
+                self.assertEqual(
+                    model.latest_category_expense_data,
+                    {"2025-10|Makanan & Minuman": 10000, "2025-10|Transportasi": 10000},
+                )
 
     def test_reprocess_file_with_category_changed(self, mock_logger):
         """
@@ -325,10 +337,12 @@ class TestWorksheet(TestCase):
                         obj.process_file_category_expense()
                     )
                     obj.change_data_model()
-                    
-                model = FileIntegrity.objects.first()
-                self.assertEqual(model.latest_category_expense_data, {'2025-10|Makanan & Minuman': 5000, '2025-10|Transportasi': 10000})
 
+                model = FileIntegrity.objects.first()
+                self.assertEqual(
+                    model.latest_category_expense_data,
+                    {"2025-10|Makanan & Minuman": 5000, "2025-10|Transportasi": 10000},
+                )
 
                 # 15000 dari value fake_ws
                 # 5000 dari generate_dummy_file
@@ -390,10 +404,11 @@ class TestWorksheet(TestCase):
                 )
 
                 self.assertEqual(rows_for_append, [])
-                
-                model.refresh_from_db()
-                self.assertEqual(model.latest_category_expense_data, {'2025-10|Transportasi': 15000})
 
+                model.refresh_from_db()
+                self.assertEqual(
+                    model.latest_category_expense_data, {"2025-10|Transportasi": 15000}
+                )
 
     def test_reprocess_file_with_month_updated(self, mock_logger):
         """
@@ -432,10 +447,12 @@ class TestWorksheet(TestCase):
                         obj.process_file_category_expense()
                     )
                     obj.change_data_model()
-                    
-                model = FileIntegrity.objects.first()
-                self.assertEqual(model.latest_category_expense_data, {'2025-10|Makanan & Minuman': 5000, '2025-10|Transportasi': 10000})
 
+                model = FileIntegrity.objects.first()
+                self.assertEqual(
+                    model.latest_category_expense_data,
+                    {"2025-10|Makanan & Minuman": 5000, "2025-10|Transportasi": 10000},
+                )
 
                 # 15000 dari value fake_ws
                 # 5000 dari generate_dummy_file
@@ -461,7 +478,9 @@ class TestWorksheet(TestCase):
                 with dummy_file.open("w", newline="") as f:
                     writer = csv.writer(f)
                     writer.writerow(["date", "category", "subcategory", "price"])
-                    writer.writerow(["2025-11-23", "Makanan & Minuman", "Cemilan", 5000])
+                    writer.writerow(
+                        ["2025-11-23", "Makanan & Minuman", "Cemilan", 5000]
+                    )
                     writer.writerow(["2025-10-23", "Transportasi", "Tiket Umum", 10000])
 
                 file = {
@@ -496,10 +515,15 @@ class TestWorksheet(TestCase):
                     ],
                 )
 
-                self.assertEqual(rows_for_append, [["2025-11", "Makanan & Minuman", 5000]])
-                
+                self.assertEqual(
+                    rows_for_append, [["2025-11", "Makanan & Minuman", 5000]]
+                )
+
                 model.refresh_from_db()
-                self.assertEqual(model.latest_category_expense_data, {'2025-11|Makanan & Minuman': 5000, '2025-10|Transportasi': 10000})
+                self.assertEqual(
+                    model.latest_category_expense_data,
+                    {"2025-11|Makanan & Minuman": 5000, "2025-10|Transportasi": 10000},
+                )
 
     def test_api_error(self, mock_logger):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -513,7 +537,7 @@ class TestWorksheet(TestCase):
                 mock_authorize.return_value = fake_gc
                 fake_gc.open_by_key.return_value = fake_sh
                 fake_sh.worksheet.return_value = fake_ws
-                
+
                 # --- Data di Google Sheet sebelum reprocess ---
                 get_all_values_default = [
                     ["month", "category", "total_expense"],
@@ -521,14 +545,18 @@ class TestWorksheet(TestCase):
                 ]
 
                 fake_ws.get_all_values.return_value = get_all_values_default
-                
+
                 fake_response = MagicMock()
-                fake_response.json.return_value = {"error": {"message": "API Error", "code": "Error"}}
+                fake_response.json.return_value = {
+                    "error": {"message": "API Error", "code": "Error"}
+                }
                 fake_response.text = "API Error"
                 fake_response.status_code = 500
-                
-                fake_ws.batch_update.side_effect = gspread.exceptions.APIError(fake_response)
-        
+
+                fake_ws.batch_update.side_effect = gspread.exceptions.APIError(
+                    fake_response
+                )
+
                 file = {
                     "is_new_file": True,
                     "file_name": "data_1.csv",
@@ -543,10 +571,11 @@ class TestWorksheet(TestCase):
                             obj.process_file_category_expense()
                         )
                     obj.change_data_model()
-                
-                mock_logger.exception.assert_any_call("API error saat mengubah sheet: APIError: [Error]: API Error")
-                    
-                
+
+                mock_logger.exception.assert_any_call(
+                    "API error saat mengubah sheet: APIError: [Error]: API Error"
+                )
+
     def test_except_error(self, mock_logger):
         with tempfile.TemporaryDirectory() as tmpdir:
             fake_path, dummy_file = generate_dummy_file(tmpdir)
@@ -559,7 +588,7 @@ class TestWorksheet(TestCase):
                 mock_authorize.return_value = fake_gc
                 fake_gc.open_by_key.return_value = fake_sh
                 fake_sh.worksheet.return_value = fake_ws
-                
+
                 # --- Data di Google Sheet sebelum reprocess ---
                 get_all_values_default = [
                     ["month", "category", "total_expense"],
@@ -567,9 +596,9 @@ class TestWorksheet(TestCase):
                 ]
 
                 fake_ws.get_all_values.return_value = get_all_values_default
-                
+
                 fake_ws.batch_update.side_effect = Exception("Except Error")
-                
+
                 file = {
                     "is_new_file": True,
                     "file_name": "data_1.csv",
@@ -584,7 +613,7 @@ class TestWorksheet(TestCase):
                             obj.process_file_category_expense()
                         )
                     obj.change_data_model()
-                
-                mock_logger.exception.assert_any_call("Gagal memperbarui sheet: Except Error")
-                    
-                
+
+                mock_logger.exception.assert_any_call(
+                    "Gagal memperbarui sheet: Except Error"
+                )

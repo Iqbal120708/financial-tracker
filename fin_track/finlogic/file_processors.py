@@ -171,10 +171,10 @@ class ProcessFile:
         try:
             if rows_for_update:
                 worksheet.batch_update(rows_for_update)
-                logger.info("Data bagian yang di update berhail di upload")
+                logger.info("Data bagian yang di update berhasil di upload")
             if rows_for_append:
                 worksheet.append_rows(rows_for_append)
-                logger.info("Data bagian yang di add berhail di upload")
+                logger.info("Data bagian yang di add berhasil di upload")
         except gspread.exceptions.APIError as e:
             logger.exception(f"API error saat mengubah sheet: {e}")
             raise
@@ -196,7 +196,9 @@ class ProcessFile:
 
         # variabel untuk kirim data sesuai format worksheet
         rows_for_update, rows_for_append = [], []
-        self.latest_category_expense_data = {}  # untuk nyimpan di db
+
+        # untuk nyimpan data hasil pemrosesan file csv di db
+        self.latest_category_expense_data = {}
 
         # mengkelola data hasil grouping agar sesuai format worksheet untuk di upload
         for month, categories_in_month in self.grouped_data_category.items():
@@ -239,7 +241,7 @@ class ProcessFile:
                         ),
                         None,
                     )
-                    if row: 
+                    if row:
                         # jika ada kurangi dengan total dari item latest_category_expense_data
                         row["values"][0][0] -= total
                     else:
@@ -257,7 +259,12 @@ class ProcessFile:
         return rows_for_update, rows_for_append
 
     def process_file_monthly_expense(self):
+        logger.info("Memulai pemrosesan file sheets bagian Pengeluaran Bulanan")
+
         worksheet, data_rows, lookup = self.get_worksheet("Pengeluaran Bulanan")
+
+        # mengisi data lookup
+        # lookup untuk dapat nyimpan lokasi baris data dan key-nya dibuat agar mudah di ambil pas lagi looping data group
         for i, row in enumerate(data_rows, start=2):  # mulai dari baris ke-2
             month, total_expense, avg_per_day, days_count = (
                 row[0],
@@ -268,17 +275,33 @@ class ProcessFile:
             lookup[month] = [i, total_expense, days_count]
 
         rows_for_update, rows_for_append = [], []
+
+        # untuk nyimpan data hasil pemrosesan file csv di db
+        self.latest_monthly_expense_data = {}
+        
         for month, dates in self.grouped_monthly_data.items():
             total_new = sum(sum(prices) for prices in dates.values())
             days_count_new = len(dates)
-            avg_new = int(total_new / len(dates))
-
+            try:
+                avg_new = int(total_new / len(dates))
+            except ZeroDivisionError:
+                avg_new = 0
+                
+            self.latest_monthly_expense_data[month] = {
+                "total_new": total_new,
+                "days_count_new": days_count_new,
+            }
+            # ambil data lookup sesuai key (month)
             if month in lookup:
                 row_index, total_old, days_count_old = lookup[month]
-                avg_combined = int(
-                    (int(total_old) + total_new)
-                    / (int(days_count_old) + days_count_new)
-                )
+                try:
+                    avg_combined = int(
+                        (int(total_old) + total_new)
+                        / (int(days_count_old) + days_count_new)
+                    )
+                except ZeroDivisionError:
+                    avg_combined = 0
+                    
                 rows_for_update.append(
                     {
                         "range": f"B{row_index}:D{row_index}",
@@ -294,14 +317,65 @@ class ProcessFile:
             else:
                 rows_for_append.append([month, total_new, avg_new, days_count_new])
 
+        # mengurangi total dan days_count yang ada di lookup (google sheets) dengan total total hasil dari process monthly expense
+        if not self.file["is_new_file"]:
+            for month, values in self.last_file.latest_monthly_expense_data.items():
+                if month in lookup:
+                    row_index, total_old, days_count_old = lookup[month]
+                    # ambil baris rows_for_update hasil loop.self.grouped_monthly_data
+                    row = next(
+                        (
+                            item
+                            for item in rows_for_update
+                            if item["range"] == f"B{row_index}:D{row_index}"
+                        ),
+                        None,
+                    )
+                    
+                    if row:
+                        # jika ada kurangi dengan value dari item latest_category_expense_data
+                        row["values"][0][0] -= values["total_new"]
+                        row["values"][0][2] -= values["days_count_new"]
+
+                        try:
+                            row["values"][0][1] = int(
+                                row["values"][0][0] / row["values"][0][2]
+                            )
+                        except ZeroDivisionError:
+                            row["values"][0][1] = 0
+                    else:
+                        # jika tidak ada tambah ke rows_for_update
+                        # tapi total_old di kurangi total_new values
+                        # days_count_old di kurangi days_count dari values
+                        # total_old > nilai dari lookup atau google sheets
+                        # total_new > nilai dari item latest_category_expense_data
+                        total = total_old - values["total_new"]
+                        days_count = days_count_old - values["days_count_new"]
+                        try:
+                            avg = total / days_count
+                        except ZeroDivisionError:
+                            avg = 0
+
+                        rows_for_update.append(
+                            {
+                                "range": f"B{row_index}:D{row_index}",
+                                "values": [[total, avg, days_count]],
+                            }
+                        )
+
         self.change_sheets(worksheet, rows_for_update, rows_for_append)
+
+        return rows_for_update, rows_for_append
 
     def change_data_model(self):
         if not self.file["is_new_file"]:
             self.last_file.hash_data = self.file_hash
             self.last_file.last_checked = now()
-            self.last_file.latest_category_expense_data = (
-                self.latest_category_expense_data
+            self.last_file.latest_category_expense_data = getattr(
+                self, "latest_category_expense_data", {}
+            )
+            self.last_file.latest_monthly_expense_data = getattr(
+                self, "latest_monthly_expense_data", {}
             )
             self.last_file.save()
         else:
@@ -309,7 +383,12 @@ class ProcessFile:
                 filename=self.file["file_name"],
                 hash_data=self.file_hash,
                 last_checked=now(),
-                latest_category_expense_data=self.latest_category_expense_data,
+                latest_category_expense_data=getattr(
+                    self, "latest_category_expense_data", {}
+                ),
+                latest_monthly_expense_data=getattr(
+                    self, "latest_monthly_expense_data", {}
+                ),
             )
 
     def send_email_success(self):
