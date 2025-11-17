@@ -106,6 +106,7 @@ Configure the application using the following environment variables. Each variab
 - install liblary in requirements.txt
 - activate redis
 - activate celery worker and beat
+- script will run task if hour 0,4,8,12,16,20 in time zone Asia/Jakarta
 
 # sintaks
 `pip install -r requirements.txt` for install liblary
@@ -128,3 +129,6 @@ for easy search, you can use key `send_mail_task` or `message` in search
 
 if you want change the message log, you can find `financial-tracker/fin_track/finlogic/file_processors.py`
 for easy search, you can use key `logger` in search
+
+if you want change the hour, you can open file `financial-tracker/fin_track/fin_track/settings.py`, then chnage time zone according your time zone area
+you can change the hour with search variabel **CELERY_BEAT_SCHEDULE** then change value crontab
