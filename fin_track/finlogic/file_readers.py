@@ -21,17 +21,19 @@ def check_directory(path_dummy_data):
 
 def get_file_name():
     last_file = FileIntegrity.objects.last()
-
+    
+    # logic for get file
     if (
         last_file
-        and last_file.last_checked.date() != localtime().date()
+        and last_file.created_at.date() != localtime().date()
         and localtime().hour >= 8
     ):
-        # ambil file baru
+        # get new file
         number = int(last_file.filename.split("_")[1].split(".")[0])
         file_name = f"data_{number + 1}.csv"
         is_new_file = True
     else:
+        # get old file
         file_name = getattr(last_file, "filename", "data_1.csv")
         is_new_file = not hasattr(last_file, "filename")
 

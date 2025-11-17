@@ -107,6 +107,9 @@ Configure the application using the following environment variables. Each variab
 - activate redis
 - activate celery worker and beat
 - script will run task if hour 0,4,8,12,16,20 in time zone Asia/Jakarta
+- script will find file with name `data_*.csv` 
+- first script will get last data in database and get filename if not found script will find file `data_1.csv`
+- script will find new file, example `data_2.csv`, if hour >= 8 and field **created_at** date != date now
 
 # sintaks
 `pip install -r requirements.txt` for install liblary
@@ -132,3 +135,5 @@ for easy search, you can use key `logger` in search
 
 if you want change the hour, you can open file `financial-tracker/fin_track/fin_track/settings.py`, then chnage time zone according your time zone area
 you can change the hour with search variabel **CELERY_BEAT_SCHEDULE** then change value crontab
+
+if you want change the logic get new file, you can open file `financial-tracker/fin_track/finlogic/file_readers.py`, then change logic in function **get_file_name**
