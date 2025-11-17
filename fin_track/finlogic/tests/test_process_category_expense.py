@@ -65,7 +65,7 @@ class TestWorksheet(TestCase):
                 self.assertEqual(rows_for_append, [["2025-10", "Transportasi", 10000]])
 
                 mock_logger.info.assert_any_call(
-                    "Memulai pemrosesan file sheets bagian Pengeluaran Category"
+                    "Memulai pemrosesan file sheets bagian Category Expense"
                 )
                 mock_logger.info.assert_any_call(
                     "Data bagian yang di update berhasil di upload"

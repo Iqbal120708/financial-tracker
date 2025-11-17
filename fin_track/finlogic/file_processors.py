@@ -13,8 +13,6 @@ import logging
 logger = logging.getLogger("fintrack")
 
 
-# lakukan test
-# tambab logging
 class ProcessFile:
     def __init__(self, file):
         self.scopes = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -141,19 +139,17 @@ class ProcessFile:
 
             if (
                 header != ["month", "category", "total_expense"]
-                and name == "Pengeluaran Category"
+                and name == "Category Expense"
             ):
                 raise Exception(
-                    "Header tidak sesuai untuk worksheet 'Pengeluaran Category'"
+                    "Header tidak sesuai untuk worksheet 'Category Expense'"
                 )
 
             elif (
                 header != ["month", "total_expense", "avg_per_day", "days_count"]
-                and name == "Pengeluaran Bulanan"
+                and name == "Monthly Expense"
             ):
-                raise Exception(
-                    "Header tidak sesuai untuk worksheet 'Pengeluaran Bulanan'"
-                )
+                raise Exception("Header tidak sesuai untuk worksheet 'Monthly Expense'")
 
             data_rows = self.values[1:] if len(self.values) > 1 else []
             lookup = {}
@@ -183,9 +179,9 @@ class ProcessFile:
             raise
 
     def process_file_category_expense(self):
-        logger.info("Memulai pemrosesan file sheets bagian Pengeluaran Category")
+        logger.info("Memulai pemrosesan file sheets bagian Category Expense")
 
-        worksheet, data_rows, lookup = self.get_worksheet("Pengeluaran Category")
+        worksheet, data_rows, lookup = self.get_worksheet("Category Expense")
 
         # mengisi data lookup
         # lookup untuk dapat nyimpan lokasi baris data dan key-nya dibuat agar mudah di ambil pas lagi looping data group
@@ -259,9 +255,9 @@ class ProcessFile:
         return rows_for_update, rows_for_append
 
     def process_file_monthly_expense(self):
-        logger.info("Memulai pemrosesan file sheets bagian Pengeluaran Bulanan")
+        logger.info("Memulai pemrosesan file sheets bagian Monthly Expense")
 
-        worksheet, data_rows, lookup = self.get_worksheet("Pengeluaran Bulanan")
+        worksheet, data_rows, lookup = self.get_worksheet("Monthly Expense")
 
         # mengisi data lookup
         # lookup untuk dapat nyimpan lokasi baris data dan key-nya dibuat agar mudah di ambil pas lagi looping data group
@@ -278,7 +274,7 @@ class ProcessFile:
 
         # untuk nyimpan data hasil pemrosesan file csv di db
         self.latest_monthly_expense_data = {}
-        
+
         for month, dates in self.grouped_monthly_data.items():
             total_new = sum(sum(prices) for prices in dates.values())
             days_count_new = len(dates)
@@ -286,7 +282,7 @@ class ProcessFile:
                 avg_new = int(total_new / len(dates))
             except ZeroDivisionError:
                 avg_new = 0
-                
+
             self.latest_monthly_expense_data[month] = {
                 "total_new": total_new,
                 "days_count_new": days_count_new,
@@ -301,7 +297,7 @@ class ProcessFile:
                     )
                 except ZeroDivisionError:
                     avg_combined = 0
-                    
+
                 rows_for_update.append(
                     {
                         "range": f"B{row_index}:D{row_index}",
@@ -331,7 +327,7 @@ class ProcessFile:
                         ),
                         None,
                     )
-                    
+
                     if row:
                         # jika ada kurangi dengan value dari item latest_category_expense_data
                         row["values"][0][0] -= values["total_new"]
@@ -369,6 +365,9 @@ class ProcessFile:
 
     def change_data_model(self):
         if not self.file["is_new_file"]:
+            logger.info(
+                f"Mengupdate data model dengan nama file {self.last_file.filename}"
+            )
             self.last_file.hash_data = self.file_hash
             self.last_file.last_checked = now()
             self.last_file.latest_category_expense_data = getattr(
@@ -379,6 +378,9 @@ class ProcessFile:
             )
             self.last_file.save()
         else:
+            logger.info(
+                f"Menambah data model baru dengan nama file {self.file['file_name']}"
+            )
             FileIntegrity.objects.create(
                 filename=self.file["file_name"],
                 hash_data=self.file_hash,
@@ -398,3 +400,4 @@ class ProcessFile:
             f"Sistem Monitoring File"
         )
         send_mail_task.delay("Data File Berhasil di Proses", message)
+        logger.info("Mengirim pesan success melalui email")

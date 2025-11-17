@@ -1,6 +1,6 @@
 from .utils import send_mail_task
 from .models import FileIntegrity
-from django.utils.timezone import now
+from django.utils.timezone import now, localtime
 from pathlib import Path
 
 
@@ -22,7 +22,11 @@ def check_directory(path_dummy_data):
 def get_file_name():
     last_file = FileIntegrity.objects.last()
 
-    if last_file and last_file.last_checked.date() != now().date() and now().hour >= 8:
+    if (
+        last_file
+        and last_file.last_checked.date() != localtime().date()
+        and localtime().hour >= 8
+    ):
         # ambil file baru
         number = int(last_file.filename.split("_")[1].split(".")[0])
         file_name = f"data_{number + 1}.csv"

@@ -26,10 +26,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-18o$cm+j#@i3srkfq5i+#hi=eor^r*^4d2vqti_&9r9v8h+5*l"
+SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = True if os.environ.get("DEBUG") == True else False
 
 ALLOWED_HOSTS = []
 
@@ -143,8 +143,8 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
 # DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # Celery
-CELERY_BROKER_URL = "redis://localhost:6379/0"
-CELERY_RESULT_BACKEND = "redis://localhost:6379/1"
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND")
 
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_TASK_EAGER_PROPAGATES = False
@@ -158,13 +158,13 @@ CELERY_BEAT_SCHEDULE = {
     },
     # "test_run_check_and_process_file_task": {
     #     "task": "finlogic.tasks.check_and_process_file_task",
-    #     "schedule": timedelta(minutes=1)
+    #     "schedule": timedelta(minutes=3)
     # },
 }
 # CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
-SENDER_EMAIL = "iqbalcding@gmail.com"
-TARGETS_EMAIL = ["iqballabqi127@gmail.com"]
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL")
+TARGETS_EMAIL = os.environ.get("TARGETS_EMAIL").split(",")
 
 ID_FILE_GOOGLE_SHEETS = os.environ.get("ID_FILE_GOOGLE_SHEETS")
 PATH_CREDENTIALS = os.environ.get("PATH_CREDENTIALS")

@@ -33,7 +33,7 @@ class TestWorksheet(TestCase):
             }
 
             obj = ProcessFile(file)
-            worksheet, data_rows, lookup = obj.get_worksheet("Pengeluaran Category")
+            worksheet, data_rows, lookup = obj.get_worksheet("Category Expense")
 
             self.assertEqual(worksheet, fake_ws)
             self.assertEqual(data_rows, [])
@@ -61,7 +61,7 @@ class TestWorksheet(TestCase):
             }
 
             obj = ProcessFile(file)
-            worksheet, data_rows, lookup = obj.get_worksheet("Pengeluaran Category")
+            worksheet, data_rows, lookup = obj.get_worksheet("Category Expense")
 
             self.assertEqual(worksheet, fake_ws)
             self.assertEqual(data_rows, [["2025-11", "Transportasi", 10000]])
@@ -87,10 +87,10 @@ class TestWorksheet(TestCase):
 
             with self.assertRaises(gspread.exceptions.WorksheetNotFound):
                 obj = ProcessFile(file)
-                obj.get_worksheet("Pengeluaran Category")
+                obj.get_worksheet("Category Expense")
 
             mock_logger.error.assert_any_call(
-                "Worksheet 'Pengeluaran Category' tidak ditemukan."
+                "Worksheet 'Category Expense' tidak ditemukan."
             )
 
     def test_exception(self, mock_logger):
@@ -111,7 +111,7 @@ class TestWorksheet(TestCase):
 
             with self.assertRaises(Exception):
                 obj = ProcessFile(file)
-                obj.get_worksheet("Pengeluaran Category")
+                obj.get_worksheet("Category Expense")
 
             mock_logger.exception.assert_any_call(
                 "Gagal mengambil worksheet: Error Worksheet"
@@ -141,10 +141,10 @@ class TestWorksheet(TestCase):
 
             with self.assertRaises(Exception):
                 obj = ProcessFile(file)
-                obj.get_worksheet("Pengeluaran Category")
+                obj.get_worksheet("Category Expense")
 
             mock_logger.exception.assert_any_call(
-                "Gagal mengambil worksheet: Header tidak sesuai untuk worksheet 'Pengeluaran Category'"
+                "Gagal mengambil worksheet: Header tidak sesuai untuk worksheet 'Category Expense'"
             )
 
     def test_header_monthly_invalid(self, mock_logger):
@@ -171,8 +171,8 @@ class TestWorksheet(TestCase):
 
             with self.assertRaises(Exception):
                 obj = ProcessFile(file)
-                obj.get_worksheet("Pengeluaran Bulanan")
+                obj.get_worksheet("Monthly Expense")
 
             mock_logger.exception.assert_any_call(
-                "Gagal mengambil worksheet: Header tidak sesuai untuk worksheet 'Pengeluaran Bulanan'"
+                "Gagal mengambil worksheet: Header tidak sesuai untuk worksheet 'Monthly Expense'"
             )
