@@ -8,7 +8,7 @@ This project check and manage file csv, file csv which containing your expense d
 - send info message with email (message languange indonesia)
 - logging (message languange indonesia)
 
-# Arsitektur
+# Tech Stack
 - Django > Backend
 - Redis > Broker
 - Celery > Worker
