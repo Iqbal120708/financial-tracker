@@ -13,6 +13,7 @@ This project check and manage file csv, file csv which containing your expense d
 - Redis > Broker
 - Celery > Worker
 - Celery Beat > Scheduler
+- sqlite3 > database
 
 # Install
 - python 3.12
